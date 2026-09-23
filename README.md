@@ -1,31 +1,42 @@
-# Placement Preparation Platform
+# Placementor - AI Placement Preparation Platform
 
-An AI-powered, full-stack placement preparation platform built with React, FastAPI, Supabase, and Groq's 120B model.
+An AI-powered, full-stack placement preparation platform built with React, FastAPI, Supabase, and Groq's high-speed LLMs. Designed to simulate FAANG-level technical interviews with strict, stateful AI agents and deterministic problem curation.
 
-## ✨ Features
+## 🚀 Key Features
 
-- **DSA Sandbox:** Write and execute code (Python, JS, C++) directly in the browser against test cases.
-- **AI Technical Interviews:** Complete a DSA problem with a live AI FAANG interviewer. Features a fully resizable dual-pane workspace (Code Editor & Chat/Description). The AI hints at logic flaws without giving away the answer.
-- **Behavioral Interviews:** Upload your resume and practice behavioral questions in a timed environment.
-- **Resume Analyzer:** Get instant feedback and ATS scoring on your PDF resume.
-- **Learning Tracker:** Keep track of your placement studies. The AI automatically extracts key points from brief topic inputs.
+### 🤖 Stateful Agentic AI Interviewer
+*   **LangGraph-Powered State Machine:** Operates on an "Observe -> Decide -> Generate" loop, allowing the AI interviewer to intelligently transition between interview stages (Questioning, Code Execution, Debugging, Evaluation).
+*   **Comprehensive Evaluation:** Automatically scores candidates across 7 distinct dimensions (Correctness, Time/Space Complexity, Communication, Debugging) with 100% deterministic stage transitions.
+*   **Zero Hallucination Focus:** Powered by Groq for sub-800ms natural language generation, keeping the mock interview hyper-responsive and strictly aligned with the target problem.
 
-## 🚀 Tech Stack
+### 🧠 Adaptive DSA Selection Engine
+*   **Deterministic Recommendation:** Eliminates random problem selection. Uses a sophisticated Python/PostgreSQL scoring algorithm to process unstructured candidate history.
+*   **Multi-Dimensional Profiling:** Analyzes over 5 data dimensions (recurring interview weaknesses, resume skill gaps, learning activity, recency penalties, and current difficulty level) to assign the most mathematically optimal algorithm problem for continuous progression.
 
-- **Frontend:** React, Vite, Tailwind CSS (v4), Monaco Editor, React Resizable Panels, React Markdown.
-- **Backend:** FastAPI, Python, Uvicorn, subprocess execution for code running.
-- **Database:** Supabase (PostgreSQL), with PostgREST constraints and SQL functions.
-- **AI / LLM:** Groq API (Llama 3 / gpt-oss-120b).
-- **Storage:** Supabase Storage (for Resume PDFs).
+### 🛡️ Secure Remote Code Execution (RCE) Sandbox
+*   **Dockerized Compilation:** Safely executes and evaluates untrusted Python/C++/JS submissions against dynamic hidden test cases in real-time.
+*   **Strict Isolation:** Enforces hard CPU and memory resource limits to prevent malicious payloads or memory leaks.
 
-## 🛠️ Setup Instructions
+### 🎨 Modern Workspace & UI
+*   **Split-Pane IDE:** Built with React, Tailwind CSS v4, and Monaco Editor. Features fully resizable, drag-and-drop dual panes for seamless coding and chatting.
+*   **UX Polish:** Clean, responsive design featuring intuitive dashboard analytics, persistent learning trackers, and rich markdown parsing.
+
+## 🛠️ Tech Stack
+
+- **Frontend:** React, TypeScript, Vite, Tailwind CSS (v4), Monaco Editor, React Resizable Panels.
+- **Backend:** FastAPI, Python, LangGraph, Docker.
+- **Database:** Supabase (PostgreSQL), Supabase Auth, Row Level Security (RLS).
+- **AI / LLM:** Groq API (Llama 3 70B / 120B).
+
+## 💻 Setup Instructions
 
 ### Prerequisites
 - Node.js (v18+)
 - Python (3.10+)
+- Docker Desktop (Required for the RCE Sandbox)
 - Supabase CLI
 
-### 1. Database & Services (Supabase)
+### 1. Database Setup (Supabase)
 ```bash
 # Start local Supabase instance
 supabase start
@@ -34,7 +45,7 @@ supabase start
 supabase db push
 ```
 
-### 2. Backend (FastAPI)
+### 2. Backend Environment (FastAPI)
 ```bash
 cd backend
 python -m venv venv
@@ -46,7 +57,7 @@ pip install -r requirements.txt
 uvicorn main:app --port 8000 --reload
 ```
 
-### 3. Frontend (React)
+### 3. Frontend Environment (React)
 ```bash
 cd frontend
 npm install
@@ -54,10 +65,11 @@ npm run dev
 ```
 
 ### 4. Environment Variables
-Copy `.env.example` to `.env` in the root folder and add your API keys:
-- `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_ANON_KEY`
+Create `.env` files in both `frontend` and `backend` directories matching the `.env.example` configurations, supplying:
+- `VITE_SUPABASE_URL` / `SUPABASE_URL`
+- `VITE_SUPABASE_PUBLISHABLE_KEY`
+- `SUPABASE_SECRET_KEY`
 - `GROQ_API_KEY`
 
 ## 📝 License
-MIT
+MIT License
