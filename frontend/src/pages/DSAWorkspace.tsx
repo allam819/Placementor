@@ -15,7 +15,7 @@ export default function DSAWorkspace() {
   const [result, setResult] = useState<any>(null)
   const [loadingRun, setLoadingRun] = useState(false)
   
-  const [hint, setHint] = useState('')
+
   const [loadingHint, setLoadingHint] = useState(false)
 
   useEffect(() => {

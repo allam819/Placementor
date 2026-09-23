@@ -65,6 +65,44 @@ async def get_recent_learning(user = Depends(verify_user)):
         .execute()
     return res.data
 
+@router.get("/recommendations")
+async def get_learning_recommendations(user = Depends(verify_user)):
+    supabase: Client = get_supabase_client()
+    # Interview Recommendations
+    res_interviews = supabase.table("interview_sessions")\
+        .select("evaluation_data")\
+        .eq("user_id", user.user.id)\
+        .eq("status", "completed")\
+        .not_.is_("evaluation_data", "null")\
+        .order("completed_at", desc=True)\
+        .execute()
+        
+    recommendations = []
+    for row in (res_interviews.data or []):
+        eval_data = row.get("evaluation_data") or {}
+        recs = eval_data.get("learning_recommendations") or []
+        for r in recs:
+            r["source"] = "INTERVIEW"
+            recommendations.append(r)
+            
+    # Resume/JD Recommendations
+    res_resumes = supabase.table("resume_analyses")\
+        .select("preparation_recommendations")\
+        .eq("user_id", user.user.id)\
+        .not_.is_("preparation_recommendations", "null")\
+        .order("created_at", desc=True)\
+        .execute()
+        
+    for row in (res_resumes.data or []):
+        recs = row.get("preparation_recommendations") or []
+        for r in recs:
+            r["source"] = "RESUME"
+            # Map resume's 'reason' to 'issue' to match frontend UI component
+            r["issue"] = r.get("reason", "Missing/Weak evidence in resume")
+            recommendations.append(r)
+            
+    return recommendations
+
 @router.get("/{activity_id}")
 async def get_learning_detail(activity_id: str, user = Depends(verify_user)):
     supabase: Client = get_supabase_client()

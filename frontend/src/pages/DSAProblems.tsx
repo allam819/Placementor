@@ -1,6 +1,11 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useNavigate } from 'react-router-dom'
+import { Card, CardContent } from '../components/ui/card'
+import { Button } from '../components/ui/button'
+import { Badge } from '../components/ui/badge'
+import { EmptyState } from '../components/ui/empty-state'
+import { Code2, Play, Trash2, Loader2, Sparkles } from 'lucide-react'
 
 export default function DSAProblems() {
   const [problems, setProblems] = useState<any[]>([])
@@ -49,83 +54,90 @@ export default function DSAProblems() {
 
   const deleteProblem = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation()
-    if (!window.confirm("Are you sure you want to delete this problem?")) return
-    
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return
     
     try {
-      const res = await fetch(`http://127.0.0.1:8000/api/dsa/problems/${id}`, {
+      await fetch(`http://127.0.0.1:8000/api/dsa/problems/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${session.access_token}` }
       })
-      if (res.ok) {
-        setProblems(problems.filter(p => p.id !== id))
-      }
+      fetchProblems()
     } catch (err) {}
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 mt-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">DSA Practice</h2>
-        <div className="flex gap-2">
-          <button onClick={() => generateProblem('Easy')} disabled={generating} className="bg-green-100 text-green-800 px-3 py-1 rounded hover:bg-green-200 text-sm font-medium disabled:opacity-50">
-            + Random Easy
-          </button>
-          <button onClick={() => generateProblem('Medium')} disabled={generating} className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded hover:bg-yellow-200 text-sm font-medium disabled:opacity-50">
-            + Random Medium
-          </button>
-          <button onClick={() => generateProblem('Hard')} disabled={generating} className="bg-red-100 text-red-800 px-3 py-1 rounded hover:bg-red-200 text-sm font-medium disabled:opacity-50">
-            {generating ? 'Generating...' : '+ Random Hard'}
-          </button>
+    <div className="max-w-5xl mx-auto space-y-8 pb-10">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900 mb-2">DSA Sandbox</h1>
+          <p className="text-gray-500">Practice standalone algorithmic problems generated dynamically.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          {['Easy', 'Medium', 'Hard'].map(diff => (
+            <Button 
+              key={diff} 
+              variant="outline" 
+              onClick={() => generateProblem(diff)} 
+              disabled={generating}
+              className="bg-white"
+            >
+              {generating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4 text-blue-500" />}
+              {diff}
+            </Button>
+          ))}
         </div>
       </div>
-      
+
       {loading ? (
-        <p>Loading problems...</p>
+        <div className="flex justify-center p-12">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        </div>
+      ) : problems.length === 0 ? (
+        <Card className="border-dashed">
+          <EmptyState 
+            icon={Code2}
+            title="No problems generated"
+            description="Use the buttons above to generate an AI-tailored DSA problem."
+          />
+        </Card>
       ) : (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <ul className="divide-y divide-gray-200">
-            {problems.map(prob => (
-              <li key={prob.id} className="p-4 hover:bg-gray-50 flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-3">
-                    <h3 className="font-semibold text-lg">{prob.title}</h3>
-                    {prob.solved && (
-                      <span className="text-xs font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded-full flex items-center gap-1">
-                        ✓ Solved
-                      </span>
-                    )}
+        <div className="grid grid-cols-1 gap-4">
+          {problems.map(prob => (
+            <Card 
+              key={prob.id} 
+              className="group cursor-pointer hover:border-blue-300 hover:shadow-md transition-all"
+              onClick={() => navigate(`/dsa/${prob.id}`)}
+            >
+              <CardContent className="p-5 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="bg-blue-50 text-blue-600 p-3 rounded-lg shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                    <Code2 className="h-5 w-5" />
                   </div>
-                  <span className={`text-xs font-medium px-2 py-1 rounded-full inline-block mt-2 ${
-                    prob.difficulty === 'Easy' ? 'bg-green-100 text-green-800' :
-                    prob.difficulty === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-red-100 text-red-800'
-                  }`}>
-                    {prob.difficulty}
-                  </span>
+                  <div>
+                    <h3 className="font-semibold text-gray-900 text-lg leading-tight mb-1">{prob.title}</h3>
+                    <div className="flex items-center gap-3">
+                      <Badge variant={prob.difficulty === 'Easy' ? 'success' : prob.difficulty === 'Medium' ? 'warning' : 'destructive'} className="text-[10px] uppercase">
+                        {prob.difficulty}
+                      </Badge>
+                      <span className="text-xs text-gray-500">
+                        {new Date(prob.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <button 
-                    onClick={(e) => deleteProblem(e, prob.id)}
-                    className="text-red-500 hover:text-red-700 text-sm font-medium px-2 py-2"
-                  >
-                    Delete
-                  </button>
-                  <button 
-                    onClick={() => navigate(`/dsa/${prob.id}`)}
-                    className="bg-gray-900 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-800"
-                  >
-                    {prob.solved ? 'Review' : 'Solve'}
-                  </button>
+                
+                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button variant="ghost" size="icon" onClick={(e) => deleteProblem(e, prob.id)} className="text-gray-400 hover:text-red-600 hover:bg-red-50">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                  <Button size="sm" className="ml-2">
+                    <Play className="h-4 w-4 mr-2" /> Solve
+                  </Button>
                 </div>
-              </li>
-            ))}
-            {problems.length === 0 && (
-              <li className="p-8 text-center text-gray-500">No problems generated yet.</li>
-            )}
-          </ul>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       )}
     </div>

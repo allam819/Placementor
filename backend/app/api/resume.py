@@ -30,14 +30,21 @@ def extract_text_from_pdf_content(content: bytes) -> str:
     
     # 2. Fallback to OCR if empty (image-based PDF)
     if not parsed_text:
-        # Point to default Windows Tesseract installation
-        pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
-        
-        doc = fitz.open(stream=content, filetype="pdf")
-        for page in doc:
-            pix = page.get_pixmap(dpi=300)
-            img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-            parsed_text += pytesseract.image_to_string(img) + "\n"
+        # Rely on PATH or environment variables instead of hardcoding OS-specific locations
+        tesseract_path = os.environ.get("TESSERACT_PATH")
+        if tesseract_path:
+            pytesseract.pytesseract.tesseract_cmd = tesseract_path
+            
+        try:
+            doc = fitz.open(stream=content, filetype="pdf")
+            for page in doc:
+                pix = page.get_pixmap(dpi=300)
+                img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+                parsed_text += pytesseract.image_to_string(img) + "\n"
+        except Exception as e:
+            print(f"OCR Fallback failed: {e}")
+            # If OCR fails, just return what we have (even if empty) to gracefully degrade
+            pass
             
     return parsed_text.strip()
 
@@ -128,14 +135,37 @@ async def perform_analysis(req: AnalyzeRequest, user = Depends(verify_user)):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Failed to analyze resume: {str(e)}")
         
-    # 5. Save Analysis
+    # 5. Process Semantic Search for Preparation Recommendations
+    for rec in analysis.preparation_recommendations:
+        if rec.gap_type == "MISSING_SKILL":
+            from app.ai.embeddings import generate_embedding
+            try:
+                query_embedding = generate_embedding(f"{rec.topic} {rec.reason}")
+                match_res = supabase.rpc("match_learning_activities", {
+                    "query_embedding": query_embedding,
+                    "match_threshold": 0.6,
+                    "match_count": 3,
+                    "p_user_id": user.user.id
+                }).execute()
+                matches = match_res.data or []
+                rec.related_learning_ids = [m["id"] for m in matches]
+                if rec.related_learning_ids:
+                    rec.recommendation_type = "REVISE_EXISTING"
+                else:
+                    rec.recommendation_type = "LEARN_NEW"
+            except Exception as e:
+                import logging
+                logging.error(f"Semantic search failed for prep recommendation: {e}")
+                rec.recommendation_type = "LEARN_NEW"
+
+    # 6. Save Analysis (Storing structured recommendations directly inside recommendations to avoid schema issues)
     analysis_data = {
         "user_id": user.user.id,
         "resume_id": req.resume_id,
         "job_description_id": jd_id,
         "overall_score": analysis.overall_score,
         "gaps": analysis.gaps,
-        "recommendations": analysis.recommendations
+        "recommendations": [r.model_dump() for r in analysis.preparation_recommendations] if hasattr(analysis, "preparation_recommendations") and analysis.preparation_recommendations else analysis.recommendations,
     }
     analysis_res = supabase.table("resume_analyses").insert(analysis_data).execute()
     

@@ -1,12 +1,6 @@
-import os
-import json
-from groq import Groq
 from pydantic import BaseModel
-from typing import List, Any, Optional
-
-client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
-# Using the 120B model as discussed
-MODEL_NAME = "openai/gpt-oss-120b"
+from typing import List, Dict, Any, Optional
+from app.ai.gateway import ai_gateway
 
 class EvaluationCategory(BaseModel):
     category: str
@@ -57,22 +51,16 @@ def generate_interview_question(resume_text: str, target_role: str, difficulty: 
         2. If this is the start of the interview, introduce yourself briefly and ask a challenging first question based on their resume.
         3. If there is chat history, DO NOT just move on to the next topic automatically. Evaluate their previous answer silently.
         4. If their answer is superficial, generic, or incomplete, you MUST push back. Ask probing cross-questions, challenge their logic, ask "why did you choose that approach?", or ask them to explain edge cases.
-        5. Do not provide the answer to your own question. Do not be overly polite or validating (e.g., stop saying "That's a great answer!").
+        5. Do not provide the answer to your own question. Do not be overly polite or validating.
         6. Maintain a professional, rigorous, and demanding tone appropriate for a difficult technical interview.
         """
         
     messages = [{"role": "system", "content": system_prompt}]
     
-    # Append previous history (excluding our own system prompts)
     for msg in chat_history:
         messages.append({"role": msg["role"], "content": msg["content"]})
         
-    response = client.chat.completions.create(
-        messages=messages,
-        model=MODEL_NAME
-    )
-    
-    return response.choices[0].message.content
+    return ai_gateway.generate_chat(messages)
 
 def evaluate_interview(chat_history: List[dict]) -> InterviewEvaluation:
     """
@@ -82,19 +70,6 @@ def evaluate_interview(chat_history: List[dict]) -> InterviewEvaluation:
     You are an expert technical interviewer. The interview has concluded. 
     Analyze the transcript and provide a structured JSON evaluation.
     
-    JSON Schema:
-    {
-      "overall_score": <int 0-100>,
-      "categories": [
-        {
-          "category": "Technical Depth",
-          "score": <int 0-10>,
-          "feedback": "..."
-        },
-        ...
-      ]
-    }
-    
     Categories should include things like Technical Depth, Communication, Problem Solving.
     """
     
@@ -103,27 +78,9 @@ def evaluate_interview(chat_history: List[dict]) -> InterviewEvaluation:
         role = "Interviewer" if msg["role"] == "assistant" else "Candidate"
         transcript += f"{role}: {msg['content']}\n\n"
         
-    response = client.chat.completions.create(
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": transcript}
-        ],
-        model=MODEL_NAME,
-        response_format={"type": "json_object"}
-    )
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": transcript}
+    ]
     
-    # Let pydantic handle validation, but allow loose mapping
-    raw = json.loads(response.choices[0].message.content)
-    
-    categories = []
-    for cat in raw.get("categories", []):
-        categories.append(EvaluationCategory(
-            category=cat.get("category", "General"),
-            score=cat.get("score", 0),
-            feedback=cat.get("feedback", "")
-        ))
-        
-    return InterviewEvaluation(
-        overall_score=raw.get("overall_score", 0),
-        categories=categories
-    )
+    return ai_gateway.generate_structured(messages, InterviewEvaluation)

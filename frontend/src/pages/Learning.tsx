@@ -1,5 +1,11 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { Card, CardContent } from '../components/ui/card'
+import { Button } from '../components/ui/button'
+import { Badge } from '../components/ui/badge'
+import { EmptyState } from '../components/ui/empty-state'
+import { Search, Plus, BookOpen, X, Clock, BrainCircuit } from 'lucide-react'
+import { cn } from '../lib/utils'
 
 export default function Learning() {
   const [input, setInput] = useState('')
@@ -7,10 +13,7 @@ export default function Learning() {
   const [activities, setActivities] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [isSearching, setIsSearching] = useState(false)
-  
-  // Modal State
   const [selectedActivity, setSelectedActivity] = useState<any>(null)
-  const [loadingDetail, setLoadingDetail] = useState(false)
 
   useEffect(() => {
     if (!searchQuery) {
@@ -36,7 +39,7 @@ export default function Learning() {
     
     setIsSearching(true)
     const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return
+    if (!session) return setIsSearching(false)
 
     try {
       const res = await fetch('http://127.0.0.1:8000/api/learning/search', {
@@ -80,8 +83,7 @@ export default function Learning() {
     setLoading(false)
   }
 
-  const openDetail = async (id: str) => {
-    setLoadingDetail(true)
+  const openDetail = async (id: string) => {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return
     
@@ -91,145 +93,159 @@ export default function Learning() {
       })
       if (res.ok) setSelectedActivity(await res.json())
     } catch (err) {}
-    setLoadingDetail(false)
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-8rem)] relative">
+    <div className="flex flex-col h-[calc(100vh-6rem)] relative max-w-5xl mx-auto pb-4">
       
-      {/* Search Header */}
-      <div className="mb-6 flex justify-between items-center gap-4">
-        <h2 className="text-2xl font-bold">Learning Tracker</h2>
-        <form onSubmit={handleSearch} className="flex-1 max-w-md flex gap-2">
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Search past learnings (e.g. 'How do B-Trees work?')"
-            className="flex-1 rounded-md border border-gray-300 px-4 py-2 focus:ring-blue-500"
-          />
-          <button type="submit" disabled={isSearching} className="bg-gray-800 text-white px-4 py-2 rounded-md hover:bg-gray-900">
-            {isSearching ? '...' : 'Search'}
-          </button>
-          {searchQuery && (
-            <button type="button" onClick={() => setSearchQuery('')} className="text-sm text-gray-500 hover:text-gray-700">Clear</button>
-          )}
-        </form>
+      {/* Header and Controls */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold tracking-tight text-gray-900 mb-2">Learning Library</h1>
+        <p className="text-gray-500 mb-6">Track your study progress and easily retrieve past concepts via semantic search.</p>
+        
+        <div className="flex flex-col md:flex-row gap-4">
+          <form onSubmit={handleSearch} className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search concepts, algorithms, tools..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow shadow-sm"
+            />
+          </form>
+          
+          <form onSubmit={handleChat} className="flex-1 flex gap-2">
+            <input
+              type="text"
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              placeholder="E.g. I just learned about PostgreSQL indexing..."
+              className="flex-1 bg-white border border-gray-200 px-4 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow shadow-sm disabled:opacity-50"
+              disabled={loading}
+            />
+            <Button type="submit" disabled={loading || !input.trim()} isLoading={loading} className="shrink-0">
+              <Plus className="mr-2 h-4 w-4" /> Add Note
+            </Button>
+          </form>
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto space-y-8 pb-4 pr-2">
-        {Object.entries(
-          activities.reduce((acc, a) => {
-            const dateStr = a.created_at ? new Date(a.created_at).toLocaleDateString('en-US', {
-              weekday: 'long', month: 'short', day: 'numeric', year: 'numeric'
-            }) : 'Unknown Date';
-            if (!acc[dateStr]) acc[dateStr] = [];
-            acc[dateStr].push(a);
-            return acc;
-          }, {} as Record<string, any[]>)
-        ).map(([date, dayActivities]: [string, any]) => (
-          <div key={date} className="space-y-4">
-            <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider border-b pb-2">{date}</h3>
-            {dayActivities.map((a: any) => (
-              <div key={a.id} onClick={() => openDetail(a.id)} className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 cursor-pointer hover:border-blue-500 transition-colors">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full mb-2">
-                      {a.type}
-                    </span>
-                    <h3 className="font-semibold text-lg">{a.title}</h3>
-                    <p className="text-sm text-gray-500">{a.topic}</p>
+      {/* Activity List */}
+      <div className="flex-1 overflow-y-auto pr-2 pb-4 space-y-3">
+        {isSearching && activities.length === 0 ? (
+          <div className="py-12 text-center text-sm text-gray-500">Searching...</div>
+        ) : activities.length > 0 ? (
+          activities.map((a: any) => (
+            <Card 
+              key={a.id} 
+              className="group cursor-pointer hover:border-blue-300 hover:shadow-md transition-all duration-200"
+              onClick={() => openDetail(a.id)}
+            >
+              <CardContent className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex gap-4 items-start">
+                  <div className="mt-1 bg-blue-50 text-blue-600 p-2.5 rounded-lg shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                    <BrainCircuit className="h-5 w-5" />
                   </div>
-                  {a.similarity && (
-                    <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded-md">
-                      {Math.round(a.similarity * 100)}% Match
-                    </span>
-                  )}
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-semibold text-gray-900 leading-tight">{a.title}</h3>
+                      {a.similarity && (
+                        <Badge variant="success" className="text-[10px] ml-2">
+                          {Math.round(a.similarity * 100)}% Match
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-600 line-clamp-1">{a.topic}</p>
+                    <div className="flex items-center gap-3 mt-2 text-xs text-gray-400">
+                      <span className="flex items-center gap-1"><Clock className="h-3 w-3"/> {new Date(a.created_at).toLocaleDateString()}</span>
+                      <span className="capitalize px-1.5 py-0.5 bg-gray-100 rounded text-gray-600 font-medium">{a.type?.replace('_', ' ')}</span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        ))}
-        {activities.length === 0 && (
-          <div className="text-center text-gray-500 py-12">No activities found.</div>
+              </CardContent>
+            </Card>
+          ))
+        ) : (
+          <Card className="h-full border-dashed">
+            <EmptyState 
+              icon={BookOpen}
+              title={searchQuery ? "No results found" : "Your library is empty"}
+              description={searchQuery ? "Try a different search term." : "Use the input above to quickly log new concepts you learn."}
+            />
+          </Card>
         )}
-      </div>
-
-      <div className="pt-4 border-t border-gray-200">
-        <form onSubmit={handleChat} className="flex gap-2">
-          <input
-            type="text"
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            placeholder="Log what you learned today..."
-            className="flex-1 rounded-md border border-gray-300 px-4 py-2 focus:ring-blue-500"
-            disabled={loading}
-          />
-          <button type="submit" disabled={loading || !input.trim()} className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50">
-            {loading ? 'AI Parsing...' : 'Log'}
-          </button>
-        </form>
       </div>
 
       {/* Detail Modal Overlay */}
       {selectedActivity && (
-        <div className="absolute inset-0 bg-white z-10 flex flex-col p-6 overflow-y-auto border border-gray-200 shadow-xl rounded-lg">
-          <div className="flex justify-between items-start mb-6">
-            <div>
-               <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full mb-2">{selectedActivity.type}</span>
-               <h2 className="text-3xl font-bold">{selectedActivity.title}</h2>
-               <p className="text-gray-500">{selectedActivity.topic}</p>
-            </div>
-            <button onClick={() => setSelectedActivity(null)} className="text-gray-500 hover:text-gray-900 text-2xl font-bold">&times;</button>
-          </div>
-          
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-lg font-semibold border-b pb-2 mb-2">Description</h3>
-              <p className="text-gray-700">{selectedActivity.description}</p>
-            </div>
-            
-            {selectedActivity.content && Object.keys(selectedActivity.content).length > 0 && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center p-4 sm:p-6 animate-in">
+          <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm rounded-xl" onClick={() => setSelectedActivity(null)} />
+          <Card className="relative w-full max-w-3xl max-h-full flex flex-col shadow-2xl">
+            <div className="flex items-start justify-between p-6 border-b border-gray-100 shrink-0">
               <div>
-                <h3 className="text-lg font-semibold border-b pb-2 mb-2">Structured Notes</h3>
-                <div className="space-y-4">
-                  {Object.entries(selectedActivity.content).map(([key, value]: [string, any]) => {
-                    if (!value || (Array.isArray(value) && value.length === 0)) return null;
-                    
-                    const formattedKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-                    
-                    return (
-                      <div key={key}>
-                        <h4 className="font-medium text-gray-800 mb-1">{formattedKey}:</h4>
-                        {Array.isArray(value) ? (
-                          <ul className="list-disc pl-5 text-gray-700 space-y-1">
-                            {value.map((item: any, i: number) => (
-                              <li key={i}>{typeof item === 'object' ? JSON.stringify(item) : item}</li>
-                            ))}
-                          </ul>
-                        ) : typeof value === 'object' ? (
-                          <pre className="bg-gray-50 p-3 rounded-md text-sm text-gray-800 whitespace-pre-wrap">
-                            {JSON.stringify(value, null, 2)}
-                          </pre>
-                        ) : (
-                          <p className="text-gray-700">{value}</p>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+                <Badge variant="secondary" className="mb-3 uppercase tracking-wider text-[10px]">
+                  {selectedActivity.type?.replace('_', ' ')}
+                </Badge>
+                <h2 className="text-2xl font-bold text-gray-900 leading-tight">{selectedActivity.title}</h2>
+                <p className="text-sm text-gray-500 mt-1">{selectedActivity.topic}</p>
               </div>
-            )}
-            
-            <div>
-              <h3 className="text-lg font-semibold border-b pb-2 mb-2">Tags</h3>
-              <div className="flex gap-2 flex-wrap">
-                {selectedActivity.subtopics?.map((tag: string, i: number) => (
-                  <span key={i} className="bg-gray-100 text-gray-700 px-2 py-1 text-xs rounded-md">{tag}</span>
-                ))}
-              </div>
+              <Button variant="ghost" size="icon" onClick={() => setSelectedActivity(null)} className="-mt-2 -mr-2 shrink-0">
+                <X className="h-5 w-5 text-gray-400" />
+              </Button>
             </div>
-          </div>
+            
+            <div className="p-6 overflow-y-auto space-y-8 text-sm">
+              <section>
+                <h3 className="font-semibold text-gray-900 mb-2 uppercase tracking-wider text-xs">Description</h3>
+                <p className="text-gray-700 leading-relaxed">{selectedActivity.description}</p>
+              </section>
+              
+              {selectedActivity.content && Object.keys(selectedActivity.content).length > 0 && (
+                <section>
+                  <h3 className="font-semibold text-gray-900 mb-3 uppercase tracking-wider text-xs">Structured Notes</h3>
+                  <div className="space-y-4">
+                    {Object.entries(selectedActivity.content).map(([key, value]: [string, any]) => {
+                      if (!value || (Array.isArray(value) && value.length === 0)) return null;
+                      const formattedKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                      
+                      return (
+                        <div key={key} className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+                          <h4 className="font-semibold text-gray-800 mb-2">{formattedKey}</h4>
+                          {Array.isArray(value) ? (
+                            <ul className="space-y-1.5 pl-4 list-disc marker:text-gray-300">
+                              {value.map((item: any, i: number) => (
+                                <li key={i} className="text-gray-700 pl-1">{typeof item === 'object' ? JSON.stringify(item) : item}</li>
+                              ))}
+                            </ul>
+                          ) : typeof value === 'object' ? (
+                            <pre className="bg-white p-3 rounded border border-gray-200 text-xs text-gray-800 whitespace-pre-wrap overflow-x-auto">
+                              {JSON.stringify(value, null, 2)}
+                            </pre>
+                          ) : (
+                            <p className="text-gray-700">{value}</p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </section>
+              )}
+              
+              {selectedActivity.subtopics && selectedActivity.subtopics.length > 0 && (
+                <section>
+                  <h3 className="font-semibold text-gray-900 mb-3 uppercase tracking-wider text-xs">Tags</h3>
+                  <div className="flex gap-2 flex-wrap">
+                    {selectedActivity.subtopics.map((tag: string, i: number) => (
+                      <span key={i} className="bg-gray-100 text-gray-600 border border-gray-200 px-2.5 py-1 text-xs rounded-md">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </section>
+              )}
+            </div>
+          </Card>
         </div>
       )}
     </div>

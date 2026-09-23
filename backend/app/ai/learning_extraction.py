@@ -1,10 +1,6 @@
-import os
-import json
-from groq import Groq
 from pydantic import BaseModel
-from typing import List, Optional
-
-client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+from typing import List, Optional, Dict, Any
+from app.ai.gateway import ai_gateway
 
 class ExtractedLearning(BaseModel):
     type: str = "note" # 'concept', 'problem', 'resource', 'note'
@@ -19,30 +15,24 @@ def extract_learning_activity(user_input: str) -> ExtractedLearning:
     You are an AI assistant that extracts structured learning activities from user natural language input.
     The user is a software engineering student preparing for placements.
     
-    Extract the following fields and return ONLY a valid JSON object:
+    Extract the following fields and return ONLY a valid JSON object matching the requested schema:
     - type: one of ['concept', 'problem', 'resource', 'note']
-    - title: A concise title of what was learned
-    - description: A brief summary
+    - title: A concise title of what was learned based ONLY on the user's input
+    - description: A brief summary based ONLY on the user's input
     - topic: Broad topic (e.g., 'DBMS', 'DSA', 'System Design')
-    - subtopics: List of specific subtopics. YOU MUST GENERATE AT LEAST 2-3 RELEVANT TAGS EVEN IF THE INPUT IS BRIEF.
+    - subtopics: List of specific subtopics mentioned.
     - content: A dictionary with additional details based on the type.
-        - If concept: {"quick_notes": ["...", "..."]}
-        - If problem: {"approach": "...", "time_complexity": "...", "space_complexity": "..."}
-        
-    CRITICAL INSTRUCTION: If the user's input is very short (e.g. "DNS in computer networks"), you MUST act as an educator and auto-generate helpful educational notes in the `content` field and auto-generate related tags in `subtopics`. Do not leave them empty!
     
-    Ensure the output is strictly valid JSON without markdown wrapping.
+    CRITICAL ANTI-HALLUCINATION INSTRUCTION: 
+    Do NOT invent or fabricate educational content, concepts, or technical depth that the user did not explicitly state. 
+    If the user's input is very short (e.g. "I learned DNS"), simply record it as a short note. 
+    Do not auto-generate deep technical notes (like "recursive resolution", "caching", etc.) unless the user mentioned them.
+    Preserve the user's statement exactly as the limit of the knowledge.
     """
     
-    response = client.chat.completions.create(
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_input}
-        ],
-        model="openai/gpt-oss-120b",
-        response_format={"type": "json_object"}
-    )
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_input}
+    ]
     
-    content = response.choices[0].message.content
-    data = json.loads(content)
-    return ExtractedLearning(**data)
+    return ai_gateway.generate_structured(messages, ExtractedLearning)
