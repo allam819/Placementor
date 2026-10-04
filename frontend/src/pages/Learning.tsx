@@ -5,7 +5,6 @@ import { Button } from '../components/ui/button'
 import { Badge } from '../components/ui/badge'
 import { EmptyState } from '../components/ui/empty-state'
 import { Search, Plus, BookOpen, X, Clock, BrainCircuit } from 'lucide-react'
-import { cn } from '../lib/utils'
 
 export default function Learning() {
   const [input, setInput] = useState('')

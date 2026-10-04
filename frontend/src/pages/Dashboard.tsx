@@ -1,6 +1,6 @@
 import { usePreparationProfile } from '../hooks/useApi'
 import { Link, useNavigate } from 'react-router-dom'
-import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card'
+import { Card, CardContent } from '../components/ui/card'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { EmptyState } from '../components/ui/empty-state'
@@ -13,8 +13,7 @@ import {
   CheckCircle2, 
   Clock, 
   ArrowRight,
-  BookOpen,
-  Code2
+  BookOpen
 } from 'lucide-react'
 
 export default function Dashboard() {

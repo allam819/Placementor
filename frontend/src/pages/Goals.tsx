@@ -4,7 +4,6 @@ import { Card } from '../components/ui/card'
 import { Button } from '../components/ui/button'
 import { EmptyState } from '../components/ui/empty-state'
 import { Target, Plus, CheckCircle2, Circle } from 'lucide-react'
-import { cn } from '../lib/utils'
 
 export default function Goals() {
   const [goals, setGoals] = useState<any[]>([])

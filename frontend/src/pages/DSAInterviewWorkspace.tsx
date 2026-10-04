@@ -5,7 +5,7 @@ import Editor from '@monaco-editor/react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from 'react-resizable-panels'
-import { Play, Send, CheckCircle2, XCircle, Loader2, GripVertical, GripHorizontal, Check, AlertCircle, Bot } from 'lucide-react'
+import { Play, Send, Loader2, GripVertical, GripHorizontal, Check, AlertCircle, Bot } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Badge } from '../components/ui/badge'
 import { cn } from '../lib/utils'
@@ -196,11 +196,11 @@ export default function DSAInterviewWorkspace() {
 
   return (
     <div className="h-[calc(100vh-4rem)] flex flex-col -mx-8 -my-8 bg-surface-100 overflow-hidden text-surface-900 border-t border-gray-200">
-      <PanelGroup direction="vertical" className="w-full h-full">
+      <PanelGroup orientation="vertical" className="w-full h-full">
         
         {/* Top Half: Problem & Chat */}
         <Panel defaultSize={50} minSize={30}>
-          <PanelGroup direction="horizontal">
+          <PanelGroup orientation="horizontal">
             
             {/* Left Pane: Problem */}
             <Panel defaultSize={40} minSize={30} className="bg-white border-r border-gray-200 flex flex-col">
