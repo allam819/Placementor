@@ -2,5 +2,13 @@ fastapi
 uvicorn
 pydantic
 supabase
-pytest
 httpx
+python-dotenv
+langgraph
+langchain-core
+groq
+sentence-transformers
+psycopg2-binary
+pymupdf
+python-multipart
+pytest
