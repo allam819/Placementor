@@ -129,10 +129,14 @@ class DockerRunner:
             return ExecutionResult(status="SANDBOX_ERROR", execution_time_ms=0, error_type="Source code too large")
 
         # Check docker availability
-        try:
-            subprocess.run(["docker", "info"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
-        except Exception:
-            return ExecutionResult(status="SANDBOX_UNAVAILABLE", execution_time_ms=0, error_type="Docker is not available")
+        use_docker = True
+        if os.environ.get("EXECUTION_MODE") == "local":
+            use_docker = False
+        else:
+            try:
+                subprocess.run(["docker", "info"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+            except Exception:
+                use_docker = False
 
         # Create temporary workspace
         workspace = tempfile.mkdtemp(prefix="sandbox_")
@@ -158,35 +162,51 @@ class DockerRunner:
             with open(os.path.join(workspace, "test_cases.json"), "w", encoding="utf-8") as f:
                 json.dump(test_cases, f)
                 
-            # JUSTIFICATION for subprocess: We must orchestrate the Docker container execution securely.
-            # Using subprocess strictly to invoke 'docker run' isolates the untrusted candidate code inside the container.
-            # The host only manages the container lifecycle and never evaluates the candidate code directly.
-            docker_cmd = [
-                "docker", "run",
-                "--rm",
-                "--network", "none",                   # Network isolation
-                "-m", EXECUTION_MEMORY_LIMIT,          # Memory limit
-                "--cpus", str(EXECUTION_CPU_LIMIT),    # CPU limit
-                "--pids-limit", str(EXECUTION_PIDS_LIMIT), # PID limit against fork bombs
-                "--cap-drop", "ALL",                   # Drop all Linux capabilities
-                "--read-only",                         # Read-only root filesystem
-                "--tmpfs", "/tmp",                     # Provide writable /tmp for python
-                "--user", "nobody",                    # Non-root user execution
-                "-v", f"{workspace}:/workspace",       # Mount temp workspace
-                "-w", "/workspace",                    # Set working directory
-                "python:3.11-slim",                    # Base image
-                "timeout", str(req.timeout_ms // 1000 + 1),  # Fail-safe timeout inside container
-                "python", "runner.py"
-            ]
-            
-            start_time = time.perf_counter()
-            process = subprocess.run(
-                docker_cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                timeout=req.timeout_ms / 1000 + 2, # Host timeout just in case
-                text=True
-            )
+            if use_docker:
+                # JUSTIFICATION for subprocess: We must orchestrate the Docker container execution securely.
+                docker_cmd = [
+                    "docker", "run",
+                    "--rm",
+                    "--network", "none",                   # Network isolation
+                    "-m", EXECUTION_MEMORY_LIMIT,          # Memory limit
+                    "--cpus", str(EXECUTION_CPU_LIMIT),    # CPU limit
+                    "--pids-limit", str(EXECUTION_PIDS_LIMIT), # PID limit against fork bombs
+                    "--cap-drop", "ALL",                   # Drop all Linux capabilities
+                    "--read-only",                         # Read-only root filesystem
+                    "--tmpfs", "/tmp",                     # Provide writable /tmp for python
+                    "--user", "nobody",                    # Non-root user execution
+                    "-v", f"{workspace}:/workspace",       # Mount temp workspace
+                    "-w", "/workspace",                    # Set working directory
+                    "python:3.11-slim",                    # Base image
+                    "timeout", str(req.timeout_ms // 1000 + 1),  # Fail-safe timeout inside container
+                    "python", "runner.py"
+                ]
+                
+                start_time = time.perf_counter()
+                process = subprocess.run(
+                    docker_cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    timeout=req.timeout_ms / 1000 + 2, # Host timeout just in case
+                    text=True
+                )
+            else:
+                import re
+                dangerous = ["os", "sys", "subprocess", "socket", "builtins", "eval", "exec"]
+                for imp in dangerous:
+                    if re.search(r"\b" + imp + r"\b", req.source_code):
+                        return ExecutionResult(status="SANDBOX_ERROR", execution_time_ms=0, error_type=f"Importing '{imp}' is blocked in free hosting mode")
+
+                local_cmd = ["python", "runner.py"]
+                start_time = time.perf_counter()
+                process = subprocess.run(
+                    local_cmd,
+                    cwd=workspace,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    timeout=req.timeout_ms / 1000 + 2,
+                    text=True
+                )
             exec_time = int((time.perf_counter() - start_time) * 1000)
             
             # Read results
