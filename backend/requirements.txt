@@ -9,5 +9,8 @@ langchain-core
 groq
 psycopg2-binary
 pymupdf
+pypdf
+Pillow
+pytesseract
 python-multipart
 pytest
